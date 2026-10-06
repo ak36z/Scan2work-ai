@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/skandr%20store/image-to-word-ai/app/favicon.ico.mjs%20(structured%20image%20object)"],"sourcesContent":["import src from \"IMAGE\";\nexport default { src, width: 256, height: 256 }\n"],"names":["src","width","height"],"mappings":";;;;AAAA;;uCACe;IAAEA,KAAAA,mIAAG;IAAEC,OAAO;IAAKC,QAAQ;AAAI"}},
+    {"offset": {"line": 28, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/skandr%20store/image-to-word-ai/app/page.tsx"],"sourcesContent":["import Image from \"next/image\";\nexport default function Home() {\n  return (\n    <main\n      style={{\n        display: \"flex\",\n        flexDirection: \"column\",\n        justifyContent: \"center\",\n        alignItems: \"center\",\n        height: \"100vh\",\n        gap: \"20px\",\n      }}\n    >\n      <h1>Image To Word AI</h1>\n\n      <p>ارفع صورة وسنحولها إلى ملف Word قابل للتعديل</p>\n\n      <button>اختر صورة</button>\n    </main>\n  );\n}\n"],"names":["Home","style","display","flexDirection","justifyContent","alignItems","height","gap"],"mappings":";;;;;;AACe,SAASA;IACtB,qBACE,8OAAC;QACCC,OAAO;YACLC,SAAS;YACTC,eAAe;YACfC,gBAAgB;YAChBC,YAAY;YACZC,QAAQ;YACRC,KAAK;QACP;;0BAEA,8OAAC;0BAAG;;;;;;0BAEJ,8OAAC;0BAAE;;;;;;0BAEH,8OAAC;0BAAO;;;;;;;;;;;;AAGd"}}]
+}
