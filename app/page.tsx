@@ -7,6 +7,7 @@ import {
   Packer,
   Paragraph,
   TextRun,
+  HeadingLevel,
 } from "docx";
 
 export default function Home() {
@@ -14,48 +15,100 @@ export default function Home() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [language, setLanguage] = useState("ara+eng");
+  const [fileName, setFileName] = useState("output");
+  const [fontFamily, setFontFamily] = useState("Arial");
+  const [fontSize, setFontSize] = useState(14);
+  const [executionTime, setExecutionTime] = useState("");
+  const [ocrMode, setOcrMode] = useState("standard");
 
-  const [language, setLanguage] =
-    useState("ara+eng");
+  const formatMathText = (value: string) =>
+    value
+      .replace(/sqrt/gi, "√")
+      .replace(/1\/2/g, "½")
+      .replace(/1\/4/g, "¼")
+      .replace(/3\/4/g, "¾")
+      .replace(/x2/g, "x²")
+      .replace(/x3/g, "x³")
+      .replace(/pi/gi, "π")
+      .replace(/theta/gi, "θ")
+      .replace(/alpha/gi, "α")
+      .replace(/beta/gi, "β")
+      .replace(/delta/gi, "δ");
 
-  const [fileName, setFileName] =
-    useState("output");
+  const convertImage = async () => {
+    if (files.length === 0) return;
 
-  const [fontFamily, setFontFamily] =
-    useState("Arial");
+    setLoading(true);
+    setProgress(0);
 
-  const [fontSize, setFontSize] =
-    useState(14);
+    try {
+      let fullText = "";
+      const startTime = Date.now();
+      let totalConfidence = 0;
 
-    const convertImage = async () => {
-  if (files.length === 0) return;
+      for (let i = 0; i < files.length; i++) {
+        const img = new Image();
+        img.src = URL.createObjectURL(files[i]);
 
-  setLoading(true);
-  setProgress(0);
+        await new Promise((resolve) => {
+          img.onload = () => resolve(true);
+        });
 
-  try {
-    let fullText = "";
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-    for (let i = 0; i < files.length; i++) {
-      const result = await Tesseract.recognize(
-        files[i],
-        language
-      );
+        if (!ctx) continue;
 
-      fullText += result.data.text + "\n\n";
+        canvas.width = img.width * 3;
+        canvas.height = img.height * 3;
+        ctx.filter = "grayscale(100%) contrast(350%) brightness(120%)";
 
-      setProgress(
-        Math.round(
-          ((i + 1) / files.length) * 100
-        )
-      );
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const result = await Tesseract.recognize(canvas, language, {
+          psm: ocrMode === "columns" ? 3 : 6,
+        } as any);
+
+        const pageData = result.data as any;
+        totalConfidence += pageData.confidence ?? 0;
+
+        console.log("Confidence:", pageData.confidence);
+
+        const cleanedText = (pageData.text ?? "")
+          .replace(/[|]/g, "")
+          .replace(/[ ]{2,}/g, " ")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+
+        const words = Array.isArray(pageData.words) ? pageData.words : [];
+        console.log("Detected words:", words.length);
+
+        const tableLikeText = cleanedText.replace(/\s{3,}/g, "\t");
+        const formattedText = formatMathText(tableLikeText);
+        fullText +=
+          "\n-----------------\n" +
+          "Page " +
+          (i + 1) +
+          "\n-----------------\n" +
+          formattedText +
+          "\n\n";
+
+        setProgress(Math.round(((i + 1) / files.length) * 100));
+      }
+
+      const avgConfidence = totalConfidence / files.length;
+      console.log("Average Confidence:", avgConfidence);
+
+      const endTime = Date.now();
+      const time = ((endTime - startTime) / 1000).toFixed(1);
+
+      setExecutionTime(time);
+      setText(fullText.trim());
+    } finally {
+      setLoading(false);
     }
-
-    setText(fullText);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const downloadWord = async () => {
     if (!text) return;
@@ -64,35 +117,32 @@ export default function Home() {
       sections: [
         {
           children: text
-            .split("\n")
-            .filter(
-              (line) =>
-                line.trim() !== ""
-            )
-            .map(
-              (line) =>
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: line,
-                      font: fontFamily,
-                      size: fontSize * 2,
-                    }),
-                  ],
-                })
-            ),
+            .split(/\n\s*\n/)
+            .filter((line) => line.trim() !== "")
+            .map((line) => {
+              const isHeading = line.length < 50;
+              const lineHasMath = /[√=+\-÷×]/.test(line);
+
+              return new Paragraph({
+                heading: isHeading ? HeadingLevel.HEADING_1 : undefined,
+                alignment: "right",
+                children: [
+                  new TextRun({
+                    text: line,
+                    font: fontFamily,
+                    size: fontSize * 2,
+                    bold: lineHasMath,
+                  }),
+                ],
+              });
+            }),
         },
       ],
     });
 
-    const blob =
-      await Packer.toBlob(doc);
-
-    const url =
-      URL.createObjectURL(blob);
-
-    const a =
-      document.createElement("a");
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
 
     a.href = url;
     a.download = `${fileName}.docx`;
@@ -102,27 +152,30 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
+  const hasMath = /[√=+\-÷×]/.test(text);
+
   return (
     <main
       style={{
-        maxWidth: "900px",
+        maxWidth: "1600px",
+        width: "95%",
         margin: "40px auto",
-        padding: "40px",
+        padding: "20px",
         display: "flex",
         flexDirection: "column",
-        gap: "20px",
+        gap: "15px",
         background:
           "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
         borderRadius: "24px",
         boxShadow:
-          "0 25px 50px rgba(0,0,0,0.15)",
+          "0 10px 30px rgba(0,0,0,0.08)",
         color: "#111827",
       }}
     >
       <h1
         style={{
           textAlign: "center",
-          fontSize: "52px",
+          fontSize: "42px",
           color: "#2563eb",
           fontWeight: "800",
           marginBottom: "10px",
@@ -130,7 +183,15 @@ export default function Home() {
       >
         Scan2Work AI
       </h1>
-
+<p
+  style={{
+    textAlign: "center",
+    color: "#16a34a",
+    fontWeight: "bold",
+  }}
+>
+  OCR Accuracy Optimized
+</p>
       <p
         style={{
           textAlign: "center",
@@ -143,48 +204,55 @@ export default function Home() {
         حوّل الصور الى مستندات قابلة للتعديل عن طريق
       </p>
 
-     <label
-  style={{
-    backgroundColor: "#2563eb",
-    color: "white",
-    padding: "14px",
-    borderRadius: "12px",
-    cursor: "pointer",
-    textAlign: "center",
-    fontWeight: "bold",
-  }}
->
-  اختر الصور
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.4fr 1fr",
+          gap: "30px",
+          alignItems: "start",
+        }}
+      >
+        <label
+          style={{
+            display: "block",
+            backgroundColor: "#2563eb",
+            color: "white",
+            padding: "14px",
+            borderRadius: "12px",
+            cursor: "pointer",
+            textAlign: "center",
+            fontWeight: "bold",
+          }}
+        >
+          اختر الصور
 
-  <input
-    type="file"
-    accept="image/*"
-    multiple
-    style={{ display: "none" }}
-    onChange={(e) => {
-      const selectedFiles = Array.from(
-        e.target.files || []
-      );
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const selectedFiles = Array.from(e.target.files || []);
 
-  setFiles((prev) => {
-  const newFiles = selectedFiles.filter(
-    (newFile) =>
-      !prev.some(
-        (existingFile) =>
-          existingFile.name === newFile.name &&
-          existingFile.size === newFile.size
-      )
-  );
+              setFiles((prev) => {
+                const newFiles = selectedFiles.filter(
+                  (newFile) =>
+                    !prev.some(
+                      (existingFile) =>
+                        existingFile.name === newFile.name &&
+                        existingFile.size === newFile.size
+                    )
+                );
 
-  return [...prev, ...newFiles];
-});  
- 
-    }}
-  />
-</label>
+                return [...prev, ...newFiles];
+              });
+            }}
+          />
+        </label>
+      </div>
 
-<div
-  onDragOver={(e) => {
+      <div
+        onDragOver={(e) => {
     e.preventDefault();
   }}
   onDrop={(e) => {
@@ -211,13 +279,13 @@ export default function Home() {
   }}
   style={{
     background: "#eff6ff",
-    padding: "25px",
+    padding: "18px",
     borderRadius: "16px",
     border: "2px dashed #60a5fa",
     fontWeight: "bold",
     color: "#1e3a8a",
     textAlign: "center",
-    fontSize: "18px",
+    fontSize: "16px",
     transition: "0.3s",
   }}
 >
@@ -274,8 +342,8 @@ export default function Home() {
             >
               <img
                 src={URL.createObjectURL(file)}
-                width={120}
-                height={120}
+                width={100}
+                height={100}
                 style={{
                   objectFit: "cover",
                   borderRadius: "12px",
@@ -447,9 +515,9 @@ export default function Home() {
           background: "#001eff",
           color: "white",
           border: "none",
-          padding: "16px",
+          padding: "14px",
           borderRadius: "14px",
-          fontSize: "18px",
+          fontSize: "16px",
           fontWeight: "bold",
           cursor: "pointer",
         }}
@@ -464,24 +532,108 @@ export default function Home() {
           background: "#0e9a38",
           color: "white",
           border: "none",
-          padding: "16px",
+          padding: "14px",
           borderRadius: "14px",
-          fontSize: "18px",
+          fontSize: "16px",
           fontWeight: "bold",
           cursor: "pointer",
         }}
       >
         نسخ النص
       </button>
+    
+<div
+  style={{
+    display: "flex",
+    gap: "15px",
+    justifyContent: "center",
+    marginTop: "20px",
+  }}
+>
+  <div
+    style={{
+      background: "#eff6ff",
+      padding: "15px",
+      borderRadius: "12px",
+      minWidth: "140px",
+      textAlign: "center",
+    }}
+  >
+    الصور: {files.length}
+  </div>
 
-      <p>
-        عدد الأحرف: {text.length}
-      </p>
+  <div
+    style={{
+      background: "#eff6ff",
+      padding: "15px",
+      borderRadius: "12px",
+      minWidth: "140px",
+      textAlign: "center",
+    }}
+  >
+    الأحرف: {text.length}
+  </div>
+<div
+  style={{
+    background: "#eff6ff",
+    padding: "15px",
+    borderRadius: "12px",
+    minWidth: "140px",
+    textAlign: "center",
+  }}
+>
+  الوقت: {executionTime}s
+</div>
+  <div
+    style={{
+      background: "#eff6ff",
+      padding: "15px",
+      borderRadius: "12px",
+      minWidth: "140px",
+      textAlign: "center",
+    }}
+  >
+    اللغة: {language}
+  </div>
+</div>
 
+<h2
+  style={{
+    marginTop: "25px",
+    textAlign: "center",
+    color: "#2563eb",
+  }}
+>
+  النص المستخرج
+</h2>
+<h2
+  style={{
+    textAlign: "center",
+    color: "#2563eb",
+    marginTop: "15px",
+  }}
+>
+  Preview Result
+</h2>
+{hasMath && (
+  <div
+    style={{
+      background: "#fef3c7",
+      color: "#92400e",
+      padding: "12px",
+      borderRadius: "12px",
+      marginBottom: "10px",
+      textAlign: "center",
+      fontWeight: "bold",
+    }}
+  >
+    Mathematical Expressions Detected
+  </div>
+)}
       <textarea
         value={text}
         readOnly
-        rows={15}
+        rows={8}
         style={{
           width: "100%",
           borderRadius: "14px",
@@ -492,6 +644,21 @@ export default function Home() {
           color: "#111827",
         }}
       />
+      <hr />
+
+<p
+  style={{
+    textAlign: "center",
+    color: "#64748b",
+    marginTop: "10px",
+  }}
+>
+  Scan2Work AI © 2026
+</p>
     </main>
   );
+}
+
+function replace(arg0: RegExp, arg1: string) {
+  throw new Error("Function not implemented.");
 }
