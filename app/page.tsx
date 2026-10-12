@@ -22,19 +22,7 @@ export default function Home() {
   const [executionTime, setExecutionTime] = useState("");
   const [ocrMode, setOcrMode] = useState("standard");
 
-  const formatMathText = (value: string) =>
-    value
-      .replace(/sqrt/gi, "√")
-      .replace(/1\/2/g, "½")
-      .replace(/1\/4/g, "¼")
-      .replace(/3\/4/g, "¾")
-      .replace(/x2/g, "x²")
-      .replace(/x3/g, "x³")
-      .replace(/pi/gi, "π")
-      .replace(/theta/gi, "θ")
-      .replace(/alpha/gi, "α")
-      .replace(/beta/gi, "β")
-      .replace(/delta/gi, "δ");
+  const formatMathText = (value: string) => value;
 
   const convertImage = async () => {
     if (files.length === 0) return;
@@ -84,14 +72,31 @@ export default function Home() {
         const words = Array.isArray(pageData.words) ? pageData.words : [];
         console.log("Detected words:", words.length);
 
-        const tableLikeText = cleanedText.replace(/\s{3,}/g, "\t");
-        const formattedText = formatMathText(tableLikeText);
+        const formatMathText = (text: string) => {
+  return text
+    .replace(/sqrt/gi, "√")
+    .replace(/1\/2/g, "½")
+    .replace(/1\/4/g, "¼")
+    .replace(/3\/4/g, "¾")
+    .replace(/x2/g, "x²")
+    .replace(/x3/g, "x³")
+    .replace(/pi/gi, "π")
+    .replace(/theta/gi, "θ")
+    .replace(/alpha/gi, "α")
+    .replace(/beta/gi, "β")
+    .replace(/delta/gi, "δ");
+};
+const tableLikeText = cleanedText
+  .replace(/\s{3,}/g, "\t");
+
+const formattedText =
+  formatMathText(tableLikeText);
         fullText +=
           "\n-----------------\n" +
           "Page " +
           (i + 1) +
           "\n-----------------\n" +
-          formattedText +
+          formatMathText +
           "\n\n";
 
         setProgress(Math.round(((i + 1) / files.length) * 100));
@@ -164,18 +169,28 @@ export default function Home() {
         display: "flex",
         flexDirection: "column",
         gap: "15px",
-        background:
-          "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+       background:
+  "linear-gradient(135deg, #ffffff 0%, #eef4ff 100%)",
         borderRadius: "24px",
         boxShadow:
           "0 10px 30px rgba(0,0,0,0.08)",
-        color: "#111827",
+        color: "#ffffff",
       }}
     >
+      <div
+  style={{
+    fontSize: "70px",
+    textAlign: "center",
+  }}
+>
+  📄
+</div>
       <h1
         style={{
           textAlign: "center",
-          fontSize: "42px",
+         fontSize: "64px",
+letterSpacing: "-2px",
+textShadow: "0 4px 10px rgba(37,99,235,0.25)",
           color: "#2563eb",
           fontWeight: "800",
           marginBottom: "10px",
@@ -278,14 +293,14 @@ export default function Home() {
 }); 
   }}
   style={{
-    background: "#eff6ff",
-    padding: "18px",
+    background: "linear-gradient(135deg,#eff6ff,#dbeafe)",
+    padding: "50px",
     borderRadius: "16px",
     border: "2px dashed #60a5fa",
     fontWeight: "bold",
     color: "#1e3a8a",
     textAlign: "center",
-    fontSize: "16px",
+    fontSize: "22px",
     transition: "0.3s",
   }}
 >
@@ -657,8 +672,4 @@ export default function Home() {
 </p>
     </main>
   );
-}
-
-function replace(arg0: RegExp, arg1: string) {
-  throw new Error("Function not implemented.");
 }
