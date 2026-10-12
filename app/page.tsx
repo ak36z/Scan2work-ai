@@ -173,22 +173,23 @@ const formattedText =
   "linear-gradient(135deg, #ffffff 0%, #eef4ff 100%)",
         borderRadius: "24px",
         boxShadow:
-          "0 10px 30px rgba(0,0,0,0.08)",
+          "0 10px 30px rgb(255, 255, 255)",
         color: "#ffffff",
       }}
     >
       <div
   style={{
-    fontSize: "70px",
+    fontSize: "50px",
     textAlign: "center",
+    marginBottom: "-10px",
   }}
 >
-  📄
+  📄🤖
 </div>
       <h1
         style={{
           textAlign: "center",
-         fontSize: "64px",
+         fontSize: "56px",
 letterSpacing: "-2px",
 textShadow: "0 4px 10px rgba(37,99,235,0.25)",
           color: "#2563eb",
@@ -230,6 +231,7 @@ textShadow: "0 4px 10px rgba(37,99,235,0.25)",
         <label
           style={{
             display: "block",
+           width: "100%", 
             backgroundColor: "#2563eb",
             color: "white",
             padding: "14px",
@@ -268,7 +270,7 @@ textShadow: "0 4px 10px rgba(37,99,235,0.25)",
 
       <div
         onDragOver={(e) => {
-    e.preventDefault();
+    e.preventDefault()
   }}
   onDrop={(e) => {
     e.preventDefault();
