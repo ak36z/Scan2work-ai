@@ -21,9 +21,6 @@ export default function Home() {
   const [fontSize, setFontSize] = useState(14);
   const [executionTime, setExecutionTime] = useState("");
   const [ocrMode, setOcrMode] = useState("standard");
-
-  const formatMathText = (value: string) => value;
-
   const convertImage = async () => {
     if (files.length === 0) return;
 
