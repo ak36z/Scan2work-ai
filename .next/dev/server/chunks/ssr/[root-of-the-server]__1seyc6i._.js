@@ -84,18 +84,50 @@ function Home() {
     const [fileName, setFileName] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("output");
     const [fontFamily, setFontFamily] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("Arial");
     const [fontSize, setFontSize] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(14);
+    const [executionTime, setExecutionTime] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
+    const [ocrMode, setOcrMode] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("standard");
     const convertImage = async ()=>{
         if (files.length === 0) return;
         setLoading(true);
         setProgress(0);
         try {
             let fullText = "";
+            const startTime = Date.now();
+            let totalConfidence = 0;
             for(let i = 0; i < files.length; i++){
-                const result = await __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$tesseract$2e$js$2f$src$2f$index$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"].recognize(files[i], language);
-                fullText += result.data.text + "\n\n";
+                const img = new Image();
+                img.src = URL.createObjectURL(files[i]);
+                await new Promise((resolve)=>{
+                    img.onload = ()=>resolve(true);
+                });
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+                if (!ctx) continue;
+                canvas.width = img.width * 3;
+                canvas.height = img.height * 3;
+                ctx.filter = "grayscale(100%) contrast(350%) brightness(120%)";
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const result = await __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$tesseract$2e$js$2f$src$2f$index$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"].recognize(canvas, language, {
+                    psm: ocrMode === "columns" ? 3 : 6
+                });
+                const pageData = result.data;
+                totalConfidence += pageData.confidence ?? 0;
+                console.log("Confidence:", pageData.confidence);
+                const cleanedText = (pageData.text ?? "").replace(/[|]/g, "").replace(/[ ]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+                const words = Array.isArray(pageData.words) ? pageData.words : [];
+                console.log("Detected words:", words.length);
+                const formatMathText = (text)=>text.replace(/sqrt/gi, "√").replace(/1\/2/g, "½").replace(/1\/4/g, "¼").replace(/3\/4/g, "¾").replace(/x2/gi, "x²").replace(/x3/gi, "x³").replace(/pi/gi, "π").replace(/theta/gi, "θ").replace(/alpha/gi, "α").replace(/beta/gi, "β").replace(/delta/gi, "δ");
+                const tableLikeText = cleanedText.replace(/\s{3,}/g, "\t");
+                const formattedText = formatMathText(tableLikeText);
+                fullText += "\n-----------------\n" + "Page " + (i + 1) + "\n-----------------\n" + formattedText + "\n\n";
                 setProgress(Math.round((i + 1) / files.length * 100));
             }
-            setText(fullText);
+            const avgConfidence = totalConfidence / files.length;
+            console.log("Average Confidence:", avgConfidence);
+            const endTime = Date.now();
+            const time = ((endTime - startTime) / 1000).toFixed(1);
+            setExecutionTime(time);
+            setText(fullText.trim());
         } finally{
             setLoading(false);
         }
@@ -105,15 +137,22 @@ function Home() {
         const doc = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$docx$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Document"]({
             sections: [
                 {
-                    children: text.split("\n").filter((line)=>line.trim() !== "").map((line)=>new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$docx$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Paragraph"]({
+                    children: text.split(/\n\s*\n/).filter((line)=>line.trim() !== "").map((line)=>{
+                        const isHeading = line.length < 50;
+                        const lineHasMath = /[√=+\-÷×]/.test(line);
+                        return new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$docx$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Paragraph"]({
+                            heading: isHeading ? __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$docx$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["HeadingLevel"].HEADING_1 : undefined,
+                            alignment: "right",
                             children: [
                                 new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$docx$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TextRun"]({
                                     text: line,
                                     font: fontFamily,
-                                    size: fontSize * 2
+                                    size: fontSize * 2,
+                                    bold: lineHasMath
                                 })
                             ]
-                        }))
+                        });
+                    })
                 }
             ]
         });
@@ -125,25 +164,40 @@ function Home() {
         a.click();
         URL.revokeObjectURL(url);
     };
+    const hasMath = /[√=+\-÷×]/.test(text);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
         style: {
-            maxWidth: "1400px",
+            maxWidth: "1600px",
+            width: "95%",
             margin: "40px auto",
-            padding: "25px",
-            display: "grid",
-            gridTemplateColumns: "1.4fr 1fr",
-            alignItems: "start",
+            padding: "20px",
+            display: "flex",
+            flexDirection: "column",
             gap: "15px",
-            background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+            background: "linear-gradient(135deg, #ffffff 0%, #eef4ff 100%)",
             borderRadius: "24px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
-            color: "#111827"
+            boxShadow: "0 10px 30px rgb(255, 255, 255)",
+            color: "#ffffff"
         },
         children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                style: {
+                    fontSize: "50px",
+                    textAlign: "center",
+                    marginBottom: "-10px"
+                },
+                children: "📄🤖"
+            }, void 0, false, {
+                fileName: "[project]/app/page.tsx",
+                lineNumber: 176,
+                columnNumber: 7
+            }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
                 style: {
                     textAlign: "center",
-                    fontSize: "42px",
+                    fontSize: "56px",
+                    letterSpacing: "-2px",
+                    textShadow: "0 4px 10px rgba(37,99,235,0.25)",
                     color: "#2563eb",
                     fontWeight: "800",
                     marginBottom: "10px"
@@ -151,8 +205,20 @@ function Home() {
                 children: "Scan2Work AI"
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 123,
+                lineNumber: 185,
                 columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                style: {
+                    textAlign: "center",
+                    color: "#16a34a",
+                    fontWeight: "bold"
+                },
+                children: "OCR Accuracy Optimized"
+            }, void 0, false, {
+                fileName: "[project]/app/page.tsx",
+                lineNumber: 198,
+                columnNumber: 1
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                 style: {
@@ -164,7 +230,7 @@ function Home() {
                 children: "Word حوّل الصور الى مستندات قابلة للتعديل عن طريق"
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 135,
+                lineNumber: 207,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -177,9 +243,10 @@ function Home() {
                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                     style: {
                         display: "block",
+                        width: "90%",
                         backgroundColor: "#2563eb",
                         color: "white",
-                        padding: "14px",
+                        padding: "16px",
                         borderRadius: "12px",
                         cursor: "pointer",
                         textAlign: "center",
@@ -206,18 +273,18 @@ function Home() {
                             }
                         }, void 0, false, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 169,
+                            lineNumber: 242,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 155,
+                    lineNumber: 227,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 147,
+                lineNumber: 219,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -236,14 +303,14 @@ function Home() {
                     });
                 },
                 style: {
-                    background: "#eff6ff",
-                    padding: "18px",
+                    background: "linear-gradient(135deg,#eff6ff,#dbeafe)",
+                    padding: "50px",
                     borderRadius: "16px",
                     border: "2px dashed #60a5fa",
                     fontWeight: "bold",
                     color: "#1e3a8a",
                     textAlign: "center",
-                    fontSize: "16px",
+                    fontSize: "22px",
                     transition: "0.3s"
                 },
                 children: [
@@ -257,13 +324,13 @@ function Home() {
                         children: "يدعم JPG - PNG - JPEG"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 234,
+                        lineNumber: 307,
                         columnNumber: 3
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 194,
+                lineNumber: 267,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -281,13 +348,13 @@ function Home() {
                     files.length,
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("br", {}, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 258,
+                        lineNumber: 331,
                         columnNumber: 1
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 245,
+                lineNumber: 318,
                 columnNumber: 1
             }, this),
             files.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -319,7 +386,7 @@ function Home() {
                                 alt: file.name
                             }, void 0, false, {
                                 fileName: "[project]/app/page.tsx",
-                                lineNumber: 283,
+                                lineNumber: 356,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -333,7 +400,7 @@ function Home() {
                                 children: file.name
                             }, void 0, false, {
                                 fileName: "[project]/app/page.tsx",
-                                lineNumber: 295,
+                                lineNumber: 368,
                                 columnNumber: 14
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -354,18 +421,18 @@ function Home() {
                                 children: "✕"
                             }, void 0, false, {
                                 fileName: "[project]/app/page.tsx",
-                                lineNumber: 307,
+                                lineNumber: 380,
                                 columnNumber: 1
                             }, this)
                         ]
                     }, index, true, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 271,
+                        lineNumber: 344,
                         columnNumber: 13
                     }, this))
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 262,
+                lineNumber: 335,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -376,7 +443,7 @@ function Home() {
                 children: "اللغة"
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 335,
+                lineNumber: 408,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("select", {
@@ -395,7 +462,7 @@ function Home() {
                         children: "العربية"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 355,
+                        lineNumber: 428,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -403,7 +470,7 @@ function Home() {
                         children: "English"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 356,
+                        lineNumber: 429,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -411,13 +478,13 @@ function Home() {
                         children: "عربي + English"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 357,
+                        lineNumber: 430,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 344,
+                lineNumber: 417,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -428,7 +495,7 @@ function Home() {
                 children: "اسم ملف Word"
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 360,
+                lineNumber: 433,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -444,7 +511,7 @@ function Home() {
                 }
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 369,
+                lineNumber: 442,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -455,7 +522,7 @@ function Home() {
                 children: "حجم الخط"
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 381,
+                lineNumber: 454,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("select", {
@@ -474,7 +541,7 @@ function Home() {
                         children: "12"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 401,
+                        lineNumber: 474,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -482,7 +549,7 @@ function Home() {
                         children: "14"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 402,
+                        lineNumber: 475,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -490,7 +557,7 @@ function Home() {
                         children: "16"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 403,
+                        lineNumber: 476,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -498,7 +565,7 @@ function Home() {
                         children: "18"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 404,
+                        lineNumber: 477,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -506,7 +573,7 @@ function Home() {
                         children: "20"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 405,
+                        lineNumber: 478,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -514,13 +581,13 @@ function Home() {
                         children: "24"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 406,
+                        lineNumber: 479,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 390,
+                lineNumber: 463,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -546,7 +613,7 @@ function Home() {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 425,
+                            lineNumber: 498,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -566,23 +633,23 @@ function Home() {
                                 }
                             }, void 0, false, {
                                 fileName: "[project]/app/page.tsx",
-                                lineNumber: 435,
+                                lineNumber: 508,
                                 columnNumber: 15
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 427,
+                            lineNumber: 500,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 424,
+                    lineNumber: 497,
                     columnNumber: 11
                 }, this) : "تحويل الصور"
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 409,
+                lineNumber: 482,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -601,7 +668,7 @@ function Home() {
                 children: "تحميل Word"
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 451,
+                lineNumber: 524,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -620,7 +687,7 @@ function Home() {
                 children: "نسخ النص"
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 468,
+                lineNumber: 541,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -645,7 +712,7 @@ function Home() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 493,
+                        lineNumber: 566,
                         columnNumber: 3
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -662,8 +729,26 @@ function Home() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 505,
+                        lineNumber: 578,
                         columnNumber: 3
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        style: {
+                            background: "#eff6ff",
+                            padding: "15px",
+                            borderRadius: "12px",
+                            minWidth: "140px",
+                            textAlign: "center"
+                        },
+                        children: [
+                            "الوقت: ",
+                            executionTime,
+                            "s"
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/app/page.tsx",
+                        lineNumber: 589,
+                        columnNumber: 1
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         style: {
@@ -679,13 +764,13 @@ function Home() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 517,
+                        lineNumber: 600,
                         columnNumber: 3
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 485,
+                lineNumber: 558,
                 columnNumber: 1
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -697,15 +782,43 @@ function Home() {
                 children: "النص المستخرج"
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 530,
+                lineNumber: 613,
                 columnNumber: 1
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
+                style: {
+                    textAlign: "center",
+                    color: "#2563eb",
+                    marginTop: "15px"
+                },
+                children: "Preview Result"
+            }, void 0, false, {
+                fileName: "[project]/app/page.tsx",
+                lineNumber: 622,
+                columnNumber: 1
+            }, this),
+            hasMath && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                style: {
+                    background: "#fef3c7",
+                    color: "#92400e",
+                    padding: "12px",
+                    borderRadius: "12px",
+                    marginBottom: "10px",
+                    textAlign: "center",
+                    fontWeight: "bold"
+                },
+                children: "Mathematical Expressions Detected"
+            }, void 0, false, {
+                fileName: "[project]/app/page.tsx",
+                lineNumber: 632,
+                columnNumber: 3
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("textarea", {
                 value: text,
                 readOnly: true,
                 rows: 8,
                 style: {
-                    width: "90%",
+                    width: "100%",
                     borderRadius: "14px",
                     border: "1px solid #d1d5db",
                     padding: "15px",
@@ -715,13 +828,30 @@ function Home() {
                 }
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 540,
+                lineNumber: 646,
                 columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("hr", {}, void 0, false, {
+                fileName: "[project]/app/page.tsx",
+                lineNumber: 660,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                style: {
+                    textAlign: "center",
+                    color: "#64748b",
+                    marginTop: "10px"
+                },
+                children: "Scan2Work AI © 2026"
+            }, void 0, false, {
+                fileName: "[project]/app/page.tsx",
+                lineNumber: 662,
+                columnNumber: 1
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/page.tsx",
-        lineNumber: 106,
+        lineNumber: 159,
         columnNumber: 5
     }, this);
 }

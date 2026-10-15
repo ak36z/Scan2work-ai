@@ -1,7 +1,15 @@
-{"timestamp":"00:00:02.565","source":"Server","level":"LOG","message":""}
-{"timestamp":"00:01:48.827","source":"Server","level":"LOG","message":"○ Compiling / ..."}
-{"timestamp":"00:01:55.881","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"00:09:37.182","source":"Server","level":"LOG","message":"✓ Compiled in 99ms"}
-{"timestamp":"00:11:55.063","source":"Server","level":"LOG","message":"✓ Compiled in 60ms"}
-{"timestamp":"00:14:14.345","source":"Server","level":"LOG","message":"✓ Compiled in 60ms"}
-{"timestamp":"00:17:58.721","source":"Server","level":"LOG","message":"✓ Compiled in 108ms"}
+{"timestamp":"00:00:09.677","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:14.533","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
+{"timestamp":"00:00:23.095","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
+{"timestamp":"00:00:23.705","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
+{"timestamp":"00:00:23.887","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
+{"timestamp":"00:00:42.168","source":"Browser","level":"LOG","message":"Confidence: 56"}
+{"timestamp":"00:00:42.168","source":"Browser","level":"LOG","message":"Detected words: 0"}
+{"timestamp":"00:00:42.169","source":"Browser","level":"LOG","message":"Average Confidence: 56"}
+{"timestamp":"00:01:29.100","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
+{"timestamp":"00:01:48.692","source":"Browser","level":"LOG","message":"Confidence: 86"}
+{"timestamp":"00:01:48.692","source":"Browser","level":"LOG","message":"Detected words: 0"}
+{"timestamp":"00:01:48.692","source":"Browser","level":"LOG","message":"Average Confidence: 86"}
+{"timestamp":"00:02:07.581","source":"Browser","level":"LOG","message":"Confidence: 84"}
+{"timestamp":"00:02:07.581","source":"Browser","level":"LOG","message":"Detected words: 0"}
+{"timestamp":"00:02:07.581","source":"Browser","level":"LOG","message":"Average Confidence: 84"}

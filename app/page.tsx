@@ -21,6 +21,7 @@ export default function Home() {
   const [fontSize, setFontSize] = useState(14);
   const [executionTime, setExecutionTime] = useState("");
   const [ocrMode, setOcrMode] = useState("standard");
+
   const convertImage = async () => {
     if (files.length === 0) return;
 
@@ -69,31 +70,29 @@ export default function Home() {
         const words = Array.isArray(pageData.words) ? pageData.words : [];
         console.log("Detected words:", words.length);
 
-        const formatMathText = (text: string) => {
-  return text
-    .replace(/sqrt/gi, "√")
-    .replace(/1\/2/g, "½")
-    .replace(/1\/4/g, "¼")
-    .replace(/3\/4/g, "¾")
-    .replace(/x2/g, "x²")
-    .replace(/x3/g, "x³")
-    .replace(/pi/gi, "π")
-    .replace(/theta/gi, "θ")
-    .replace(/alpha/gi, "α")
-    .replace(/beta/gi, "β")
-    .replace(/delta/gi, "δ");
-};
-const tableLikeText = cleanedText
-  .replace(/\s{3,}/g, "\t");
+        const formatMathText = (text: string) =>
+          text
+            .replace(/sqrt/gi, "√")
+            .replace(/1\/2/g, "½")
+            .replace(/1\/4/g, "¼")
+            .replace(/3\/4/g, "¾")
+            .replace(/x2/gi, "x²")
+            .replace(/x3/gi, "x³")
+            .replace(/pi/gi, "π")
+            .replace(/theta/gi, "θ")
+            .replace(/alpha/gi, "α")
+            .replace(/beta/gi, "β")
+            .replace(/delta/gi, "δ");
 
-const formattedText =
-  formatMathText(tableLikeText);
+        const tableLikeText = cleanedText.replace(/\s{3,}/g, "\t");
+        const formattedText = formatMathText(tableLikeText);
+
         fullText +=
           "\n-----------------\n" +
           "Page " +
           (i + 1) +
           "\n-----------------\n" +
-          formatMathText +
+          formattedText +
           "\n\n";
 
         setProgress(Math.round(((i + 1) / files.length) * 100));
@@ -228,7 +227,7 @@ textShadow: "0 4px 10px rgba(37,99,235,0.25)",
         <label
           style={{
             display: "block",
-           width: "100%", 
+           width: "90%", 
             backgroundColor: "#2563eb",
             color: "white",
             padding: "16px",
